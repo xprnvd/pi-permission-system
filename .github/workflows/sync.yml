@@ -1,0 +1,88 @@
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: "41 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    # Copy the package out of the upstream monorepo at its latest release
+    # tag, apply pd's overlay, scan the result, and hand it to the publish job
+    # in ci.yml.
+    #
+    # The tag, not upstream's main: upstream bumps the version in a release
+    # commit, so main can carry unreleased work under an already released
+    # version number. Publishing that would put unreleased code on npm under a
+    # version upstream never shipped.
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+      security-events: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Fetch the upstream monorepo
+        run: |
+          git remote add upstream "https://github.com/gotgenes/pi-packages.git"
+          git fetch --tags upstream
+      - name: Find the latest upstream release
+        id: tag
+        run: |
+          tag="$(git tag -l 'pi-permission-system-v*' --sort=-v:refname | head -1)"
+          if [ -z "$tag" ]; then
+            echo "no upstream release tag found" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "upstream release: $tag" >> "$GITHUB_STEP_SUMMARY"
+      - name: Copy the package out of the monorepo
+        run: |
+          rm -rf /tmp/upstream-package
+          mkdir -p /tmp/upstream-package
+          git archive "${{ steps.tag.outputs.tag }}" packages/pi-permission-system | tar -x -C /tmp/upstream-package
+          # Replace the package tree wholesale so files upstream deleted are
+          # removed here too. pd's own files live in pd/ and .github/, which
+          # the copy does not touch.
+          rm -rf src test scripts docs config schemas
+          cp -a /tmp/upstream-package/packages/pi-permission-system/. .
+          rm -rf /tmp/upstream-package .pi
+      - name: Apply the pd overlay
+        run: |
+          # The upstream manifest assumes the monorepo: pnpm workspace
+          # catalogs, a base tsconfig one directory up, an eslint config at
+          # the monorepo root, and the upstream scope in the package name.
+          node pd/fixup.mjs
+          cp pd/tsconfig.json tsconfig.json
+          cp pd/biome.json biome.json
+          cp pd/gitignore .gitignore
+          npm install --package-lock-only --no-audit --no-fund
+      - name: Commit the sync
+        run: |
+          git add -A
+          if git diff --cached --quiet; then
+            echo "already at ${{ steps.tag.outputs.tag }}"
+            exit 0
+          fi
+          git commit -m "Sync permission system from upstream ${{ steps.tag.outputs.tag }}"
+          git push origin "HEAD:${{ github.event.repository.default_branch }}"
+      # The commit was pushed with GITHUB_TOKEN, which does not trigger other
+      # workflows, so code scanning runs here on the synced tree.
+      - uses: github/codeql-action/init@v4
+        with:
+          language: javascript-typescript
+          queries: security-and-quality
+      - uses: github/codeql-action/analyze@v4
+      - name: Hand the synced tree to the publish job
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/dispatches" \
+            -f event_type=publish-extension
