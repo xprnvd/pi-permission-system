@@ -51,10 +51,11 @@ jobs:
           rm -rf /tmp/upstream-package
           mkdir -p /tmp/upstream-package
           git archive "${{ steps.tag.outputs.tag }}" packages/pi-permission-system | tar -x -C /tmp/upstream-package
-          # Replace the package tree wholesale so files upstream deleted are
-          # removed here too. pd's own files live in pd/ and .github/, which
-          # the copy does not touch.
-          rm -rf src test scripts docs config schemas
+          # Empty the worktree before the copy, so a directory upstream
+          # deleted does not survive here and get published. pd's own files
+          # live in pd/ and .github/, which the copy does not touch.
+          find . -mindepth 1 -maxdepth 1 -not -name '.git' -not -name '.github' \
+            -not -name 'pd' -not -name 'node_modules' -exec rm -rf {} +
           cp -a /tmp/upstream-package/packages/pi-permission-system/. .
           rm -rf /tmp/upstream-package .pi
       - name: Apply the pd overlay

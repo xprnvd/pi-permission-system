@@ -23,6 +23,12 @@ jobs:
        startsWith(github.ref, 'refs/tags/v')) &&
       github.repository == 'xprnvd/pi-permission-system'
     runs-on: ubuntu-latest
+    # The daily dispatch and a manual dispatch must not publish at the same
+    # time. The version check below is a check-then-act, so two overlapping
+    # runs would both try to publish the same version.
+    concurrency:
+      group: publish-pi-permission-system
+      cancel-in-progress: false
     permissions:
       contents: read
       # Required for the OIDC exchange.
@@ -35,10 +41,16 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
       - run: npm ci --no-audit --no-fund
+      - name: Run the upstream checks
+        run: npm run check
       - name: Verify the trusted publisher
         env:
-          PKG: "@xprnvd/pi-permission-system"
+          PD_SCOPE: ${{ vars.PD_SCOPE }}
         run: |
+          # The package the publish step will use, built from the same scope
+          # variable, so the check and the publish cannot disagree.
+          scope="${PD_SCOPE:-@xprnvd}"
+          PKG="${scope}/pi-permission-system"
           # The registry's OIDC exchange is what the trusted publisher
           # authorizes. Asking for the exchange token proves that npm still
           # trusts this repository and this workflow for this package, without
@@ -82,8 +94,11 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           if npm view "${scope}/pi-permission-system@${version}" version >/dev/null 2>&1; then
             echo "published=false" >> "$GITHUB_OUTPUT"
-          else
+          elif npm view "${scope}/pi-permission-system@${version}" version 2>&1 | grep -q "E404"; then
             echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::could not read the registry, not publishing on a guess"
+            exit 1
           fi
       - name: Set the published package identity
         if: steps.check.outputs.published == 'true'
@@ -96,6 +111,10 @@ jobs:
           npm pkg set repository.type=git
           npm pkg set repository.url="git+https://github.com/xprnvd/pi-permission-system.git"
           npm pkg delete repository.directory || true
+          # The package page must not send readers to the upstream project's
+          # pages. This is the fork pd publishes from.
+          npm pkg set homepage="https://github.com/xprnvd/pi-permission-system"
+          npm pkg set bugs.url="https://github.com/xprnvd/pi-permission-system/issues"
       # Trusted publishing generates the provenance attestation on its own;
       # --provenance keeps it explicit, so a broken attestation fails the
       # publish instead of shipping a package without one.

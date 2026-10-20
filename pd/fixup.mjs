@@ -31,19 +31,33 @@ const CATALOG = {
 
 const manifest = JSON.parse(readFileSync(MANIFEST, "utf8"));
 
-const unresolved = Object.entries(manifest.devDependencies ?? {}).filter(([, range]) => range === "catalog:");
-const unknown = unresolved.map(([name]) => name).filter((name) => !(name in CATALOG));
-if (unknown.length > 0) {
-	console.error(`catalog entries missing from the table in ${import.meta.filename}: ${unknown.join(", ")}`);
-	process.exit(1);
-}
-for (const [name] of unresolved) {
-	manifest.devDependencies[name] = CATALOG[name];
+// A catalog reference can appear in any dependency field. Leaving one
+// unresolved would make the install fail with an unsupported-URL error far
+// from the cause, so every one of them is resolved or the script stops.
+const DEPENDENCY_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
+for (const field of DEPENDENCY_FIELDS) {
+	const dependencies = manifest[field];
+	if (!dependencies) {
+		continue;
+	}
+	for (const [name, range] of Object.entries(dependencies)) {
+		if (range !== "catalog:") {
+			continue;
+		}
+		if (!(name in CATALOG)) {
+			console.error(`catalog entry missing from the table in ${import.meta.filename}: ${name}`);
+			process.exit(1);
+		}
+		dependencies[name] = CATALOG[name];
+	}
 }
 
 manifest.name = PACKAGE;
 manifest.repository = { type: "git", url: `git+${REPOSITORY}.git` };
 delete manifest.repository.directory;
+// The package page must not send readers to the upstream project's pages.
+manifest.homepage = REPOSITORY;
+manifest.bugs = { url: `${REPOSITORY}/issues` };
 
 // pnpm workspace scripts become npm scripts.
 if (manifest.scripts?.prepack === "pnpm run build:types") {
