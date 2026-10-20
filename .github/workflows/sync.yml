@@ -67,7 +67,15 @@ jobs:
           cp pd/tsconfig.json tsconfig.json
           cp pd/biome.json biome.json
           cp pd/gitignore .gitignore
-          npm install --package-lock-only --no-audit --no-fund
+          # The lockfile is only regenerated when the manifest actually
+          # changed. Different npm versions write the optional dependency
+          # metadata differently, so regenerating it every time would leave a
+          # commit behind on every run.
+          if git diff --quiet -- package.json; then
+            git checkout -- package-lock.json
+          else
+            npm install --package-lock-only --no-audit --no-fund
+          fi
       - name: Commit the sync
         run: |
           git add -A
