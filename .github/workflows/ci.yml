@@ -36,17 +36,29 @@ jobs:
           package-manager-cache: false
       - run: npm ci --no-audit --no-fund
       - name: Verify the trusted publisher
+        env:
+          PKG: "@xprnvd/pi-permission-system"
         run: |
-          # A dry run performs npm's OIDC exchange without publishing, so this
-          # reports whether the trusted publisher on npmjs.com still names
-          # this repository and this workflow. It fails the job when the
-          # exchange is refused, instead of waiting for the next release to
-          # fail the same way.
-          if npm publish --dry-run --ignore-scripts --json > /tmp/dry-run.json 2>/tmp/dry-run.err; then
-            echo "trusted publisher accepted" >> "$GITHUB_STEP_SUMMARY"
+          # The registry's OIDC exchange is what the trusted publisher
+          # authorizes. Asking for the exchange token proves that npm still
+          # trusts this repository and this workflow for this package, without
+          # publishing anything. A dry run cannot do this: it fails on npm's
+          # local check for a version that already exists, whether or not the
+          # exchange would have worked.
+          id_token=$(curl -sS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            -H "Accept: application/json" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=npm:registry.npmjs.org" | jq -r .value)
+          if [ -z "$id_token" ] || [ "$id_token" = "null" ]; then
+            echo "::error::could not get an OIDC token from the runner"
+            exit 1
+          fi
+          response=$(curl -sS -X POST -H "Authorization: Bearer $id_token" \
+            "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/$(echo "$PKG" | sed 's|/|%2f|')")
+          if echo "$response" | jq -e '.token' > /dev/null 2>&1; then
+            echo "trusted publisher accepted for $PKG" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::error::the trusted publisher is not configured for this package"
-            cat /tmp/dry-run.err
+            echo "::error::the trusted publisher is not configured for $PKG"
+            echo "$response"
             exit 1
           fi
       - name: Check the tag matches the package version
