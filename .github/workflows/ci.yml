@@ -98,6 +98,11 @@ jobs:
         run: |
           scope="${PD_SCOPE:-@xprnvd}"
           version="$(node -p "require('./package.json').version")"
+          latest="$(npm view "${scope}/pi-permission-system" dist-tags.latest 2>/dev/null || echo "")"
+          if [ -n "$latest" ] && [ "$(printf '%s\n%s\n' "$latest" "$version" | sort -V | head -1)" != "$latest" ]; then
+            echo "::error::version $version is not newer than the published $latest"
+            exit 1
+          fi
           if npm view "${scope}/pi-permission-system@${version}" version >/dev/null 2>&1; then
             echo "published=false" >> "$GITHUB_OUTPUT"
           elif npm view "${scope}/pi-permission-system@${version}" version 2>&1 | grep -q "E404"; then
