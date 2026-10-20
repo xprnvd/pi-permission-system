@@ -101,10 +101,10 @@ jobs:
           # The lockfile is only regenerated when the manifest actually
           # changed. Different npm versions write the optional dependency
           # metadata differently, so regenerating it every time would leave a
-          # commit behind on every run.
-          if git diff --quiet -- package.json; then
-            git checkout -- package-lock.json
-          else
+          # commit behind on every run. It is restored from the last commit
+          # first, because the worktree was emptied before the copy.
+          git checkout -- package-lock.json
+          if ! git diff --quiet -- package.json; then
             npm install --package-lock-only --no-audit --no-fund
           fi
       - name: Commit the sync
