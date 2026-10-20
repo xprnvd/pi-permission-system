@@ -3,6 +3,11 @@ name: CI
 on:
   workflow_dispatch:
   repository_dispatch:
+  schedule:
+    # The sync only dispatches this workflow when upstream has released
+    # something new, so the trusted-publisher check runs on its own weekly
+    # schedule for the weeks when nothing moved.
+    - cron: "17 6 * * 1"
   push:
     branches: [main]
 
@@ -20,6 +25,7 @@ jobs:
     if: >-
       (github.event_name == 'repository_dispatch' ||
        github.event_name == 'workflow_dispatch' ||
+       github.event_name == 'schedule' ||
        startsWith(github.ref, 'refs/tags/v')) &&
       github.repository == 'xprnvd/pi-permission-system'
     runs-on: ubuntu-latest

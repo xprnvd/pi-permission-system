@@ -18,6 +18,10 @@ jobs:
     # commit, so main can carry unreleased work under an already released
     # version number. Publishing that would put unreleased code on npm under a
     # version upstream never shipped.
+    #
+    # Nothing is copied when the release tag has not moved, so an ordinary day
+    # costs one tag lookup. The publish job still runs weekly on its own
+    # schedule, which keeps the trusted-publisher check alive on quiet weeks.
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -45,8 +49,19 @@ jobs:
             exit 1
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "upstream release: $tag" >> "$GITHUB_STEP_SUMMARY"
+          current=""
+          if [ -f pd/upstream-tag ]; then
+            current="$(cat pd/upstream-tag)"
+          fi
+          if [ "$tag" = "$current" ]; then
+            echo "upstream=up-to-date" >> "$GITHUB_OUTPUT"
+            echo "upstream release $tag is already in this repository" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "upstream=behind" >> "$GITHUB_OUTPUT"
+            echo "new upstream release: $tag (was $current)" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Copy the package out of the monorepo
+        if: steps.tag.outputs.upstream == 'behind'
         run: |
           rm -rf /tmp/upstream-package
           mkdir -p /tmp/upstream-package
@@ -57,8 +72,23 @@ jobs:
           find . -mindepth 1 -maxdepth 1 -not -name '.git' -not -name '.github' \
             -not -name 'pd' -not -name 'node_modules' -exec rm -rf {} +
           cp -a /tmp/upstream-package/packages/pi-permission-system/. .
-          rm -rf /tmp/upstream-package .pi
+          rm -rf .pi
+      - name: Check the copy against the upstream release
+        if: steps.tag.outputs.upstream == 'behind'
+        run: |
+          # The published package must be upstream's released code. The overlay
+          # may change the manifest and the tooling files, never the source
+          # that enforces the permission policy.
+          for dir in src test scripts; do
+            if ! diff -r "/tmp/upstream-package/packages/pi-permission-system/$dir" "$dir" > "/tmp/diff-$dir.txt" 2>&1; then
+              echo "::error::$dir differs from the upstream release ${{ steps.tag.outputs.tag }}"
+              head -20 "/tmp/diff-$dir.txt"
+              exit 1
+            fi
+          done
+          echo "the source matches upstream ${{ steps.tag.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
       - name: Apply the pd overlay
+        if: steps.tag.outputs.upstream == 'behind'
         run: |
           # The upstream manifest assumes the monorepo: pnpm workspace
           # catalogs, a base tsconfig one directory up, an eslint config at
@@ -67,6 +97,7 @@ jobs:
           cp pd/tsconfig.json tsconfig.json
           cp pd/biome.json biome.json
           cp pd/gitignore .gitignore
+          echo "${{ steps.tag.outputs.tag }}" > pd/upstream-tag
           # The lockfile is only regenerated when the manifest actually
           # changed. Different npm versions write the optional dependency
           # metadata differently, so regenerating it every time would leave a
@@ -77,6 +108,7 @@ jobs:
             npm install --package-lock-only --no-audit --no-fund
           fi
       - name: Commit the sync
+        if: steps.tag.outputs.upstream == 'behind'
         run: |
           git add -A
           if git diff --cached --quiet; then
@@ -88,11 +120,14 @@ jobs:
       # The commit was pushed with GITHUB_TOKEN, which does not trigger other
       # workflows, so code scanning runs here on the synced tree.
       - uses: github/codeql-action/init@v4
+        if: steps.tag.outputs.upstream == 'behind'
         with:
           language: javascript-typescript
           queries: security-and-quality
       - uses: github/codeql-action/analyze@v4
+        if: steps.tag.outputs.upstream == 'behind'
       - name: Hand the synced tree to the publish job
+        if: steps.tag.outputs.upstream == 'behind'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
