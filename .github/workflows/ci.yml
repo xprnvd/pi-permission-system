@@ -35,6 +35,20 @@ jobs:
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
       - run: npm ci --no-audit --no-fund
+      - name: Verify the trusted publisher
+        run: |
+          # A dry run performs npm's OIDC exchange without publishing, so this
+          # reports whether the trusted publisher on npmjs.com still names
+          # this repository and this workflow. It fails the job when the
+          # exchange is refused, instead of waiting for the next release to
+          # fail the same way.
+          if npm publish --dry-run --ignore-scripts --json > /tmp/dry-run.json 2>/tmp/dry-run.err; then
+            echo "trusted publisher accepted" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::the trusted publisher is not configured for this package"
+            cat /tmp/dry-run.err
+            exit 1
+          fi
       - name: Check the tag matches the package version
         if: github.event_name == 'push'
         working-directory: .
