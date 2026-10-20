@@ -90,7 +90,7 @@
     "rollup": "^4.63.1",
     "rollup-plugin-dts": "^6.5.1",
     "rumdl": "0.2.24",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   },
   "dependencies": {
