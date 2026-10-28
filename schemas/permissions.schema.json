@@ -72,6 +72,7 @@
       "description": "Terminal notifications to emit when the inline permission dialog opens: bell (BEL), osc9 (OSC 9 notification), osc777 (OSC 777 notification). Omit or leave empty for none. TUI sessions only.",
       "markdownDescription": "Terminal notifications to emit when the inline permission dialog opens, so a terminal or multiplexer can flag a session waiting on a decision.\n\n- `\"bell\"` writes a BEL — what tmux `monitor-bell` and most terminals react to.\n- `\"osc9\"` writes an OSC 9 desktop notification.\n- `\"osc777\"` writes an OSC 777 desktop notification.\n\nOmit or leave empty for none (the default). Applies to interactive **TUI** sessions only. The notification names the session and the requested tool and agent, never the command, path, or other value being decided.",
       "default": [],
+      "maxItems": 1000,
       "type": "array",
       "items": {
         "type": "string",
@@ -137,6 +138,7 @@
       "description": "Additional directories to auto-allow for reads as Pi infrastructure, bypassing the external_directory gate. Supports ~ expansion and wildcard patterns (* and ?).",
       "markdownDescription": "Additional directories to auto-allow for reads as Pi infrastructure, bypassing the `external_directory` gate.\n\nThe extension auto-discovers the global node_modules root (walks up from the extension's install path; falls back to `npm root -g` from a dev checkout), Pi's own install directory (via the coding-agent `getPackageDir()` API), Pi's harness entries under `agentDir` (`agents/`, `extensions/`, `git/`, `npm/`, `prompts/`, `skills/`, `themes/`, `settings.json`, `SYSTEM.md`, `APPEND_SYSTEM.md`, `AGENTS.md`), and project-local `.pi/npm/` and `.pi/git/`. The package's own logs directory is never auto-allowed, even when an entry here covers it. Add entries here for edge cases where auto-discovery is insufficient (e.g. custom `npmCommand` pointing to pnpm).\n\nSupports `~`/`$HOME` expansion. Entries may be plain directory prefixes or wildcard patterns using `*` (matches any characters, including `/`) and `?` (matches exactly one character). `**` and `*` are equivalent — both cross directory boundaries.\n\nOn Windows, matching is case-insensitive and tolerant of either path separator.",
       "default": [],
+      "maxItems": 1000,
       "type": "array",
       "items": {
         "type": "string",
@@ -147,6 +149,7 @@
       "description": "Ordered names of registered live-authority chain links to consult before the terminal authorizer. Config order (not registration order) fixes the chain order; an unregistered name is skipped fail-safe (more prompting, never less); a link decides nothing until it is named here.",
       "markdownDescription": "Ordered names of registered **live-authority chain links** (e.g. a model judge) to consult before the terminal authorizer (the human, or the subagent-forwarding / headless-deny fallback).\n\nA link reviews an `ask` and returns `allow` / `deny` (with an optional teaching reason) / `defer` to the next link. Three invariants govern the chain:\n\n- **Config order wins.** The order here — not the order extensions register in — fixes the security-relevant chain order.\n- **Fail-safe skip.** A name with no registered link is skipped with a warning; the `ask` still reaches the terminal (more prompting, never less).\n- **Opt-in activation.** Installing a judge extension grants it no authority; a link decides nothing until you name it here.\n\nThe chain owner caps every verdict with a bounded-delegation checkpoint: a link's `allow` on an excluded surface (`external_directory` or `path`) is downgraded to `defer`, so a link cannot exceed your policy. The one exception is per ask: a link's `allow` on a bash `external_directory` ask whose every flagged path names nothing on disk below the filesystem root (and is not a proven write) is honored, and the review log records `authorizer_allow_licensed`.\n\nDefaults to an empty list (no links).",
       "default": [],
+      "maxItems": 1000,
       "type": "array",
       "items": {
         "type": "string",
@@ -464,6 +467,7 @@
               "description": "A filesystem effect: read (the command only reads its path operands) or write (it may modify them)."
             },
             {
+              "maxItems": 1000,
               "type": "array",
               "items": {
                 "type": "string",
@@ -476,6 +480,7 @@
         },
         "unlessOption": {
           "description": "Option stems whose appearance anywhere in the command withdraws the declaration, so its path operands fall back to consulting both directional surfaces.",
+          "maxItems": 1000,
           "type": "array",
           "items": {
             "type": "string",
@@ -504,6 +509,7 @@
                     "description": "A filesystem effect: read (the command only reads its path operands) or write (it may modify them)."
                   },
                   {
+                    "maxItems": 1000,
                     "type": "array",
                     "items": {
                       "type": "string",

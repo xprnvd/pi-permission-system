@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [42.0.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v41.0.0...pi-permission-system-v42.0.0) (2026-10-28)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** require zod 4.6.7, which patches CVE-2023-54404 ([ff17542](https://github.com/gotgenes/pi-packages/commit/ff17542daac79a54557e5fe6671581a98cd6e55c)), closes [#1090](https://github.com/gotgenes/pi-packages/issues/1090)
+* **pi-permission-system:** **breaking:** reject a config array longer than 1,000 entries before walking it ([be1443a](https://github.com/gotgenes/pi-packages/commit/be1443af5e94635f8f80068f2ff0b775b381b8ae)), closes [#1090](https://github.com/gotgenes/pi-packages/issues/1090)
+
+### Documentation
+
+* **pi-permission-system:** archive Phase 15 to history ([8f7d73e](https://github.com/gotgenes/pi-packages/commit/8f7d73ef7b8042b585524649a822183984d6801d)), closes [#945](https://github.com/gotgenes/pi-packages/issues/945)
+
 ## [41.0.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v40.3.0...pi-permission-system-v41.0.0) (2026-10-17)
 
 

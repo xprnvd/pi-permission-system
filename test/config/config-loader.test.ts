@@ -132,6 +132,23 @@ describe("loadUnifiedConfig", () => {
     });
   });
 
+  it("rejects the whole file when an array exceeds 1,000 entries, with one issue", () => {
+    const configPath = join(tempDir, "config.json");
+    writeFileSync(
+      configPath,
+      JSON.stringify({
+        piInfrastructureReadPaths: Array.from({ length: 1001 }, () => ""),
+      }),
+    );
+
+    expect(loadUnifiedConfig(configPath)).toEqual({
+      config: {},
+      issues: [
+        "Invalid config value at 'piInfrastructureReadPaths': Too big: expected array to have <=1000 items",
+      ],
+    });
+  });
+
   it("strips JSONC comments before parsing", () => {
     const configPath = join(tempDir, "config.json");
     writeFileSync(

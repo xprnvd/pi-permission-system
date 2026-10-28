@@ -70,6 +70,53 @@ At ship time, also comment on PR [#983] that ADR 0007 amendment 8 decides only t
   The unverified lead from planning (a forwarded bash `external_directory` ask carries only the deciding path's `matchValues`, so the serving node resolves one path of possibly many) was not checked against [#1030]'s "every unit" fix; the license is computed at the asking node over every uncovered path, so it does not depend on the answer.
 - The `/retro` at the root should weigh the seven pre-completion review rounds: five FAILs on one invariant, each a new divergence between the projected token and the word bash runs, ended by replacing an exclusion list with a positive spelling rule.
 
+## Stage: Final Retrospective (2026-10-17T22:54:03Z)
+
+### Session summary
+
+The root `/ship` fast-forward-merged the 24-commit branch, CI passed on `fe547425`, #882 closed, PR [#983] got its parked-question comment, and `pi-permission-system` 41.0.0 released.
+Across the three sessions, the plan settled the bound in one gate, the six planned steps landed cleanly, and then seven pre-completion review rounds rebuilt what "names nothing on disk" means in code.
+With #882, every step of Phase 15 is complete.
+
+### Observations
+
+#### What went well
+
+- The agent named the pattern itself at round 3: each patch closed one way the projected path could differ from the word bash runs and left the others, so it offered a positive rule (spelled verbatim) beside "keep patching" and "pull the code".
+  The operator chose the positive rule, and rounds 4 to 6 found only narrower gaps in the word-boundary check.
+- Every fix round ran killing mutations on the new guard before committing (copy the file aside, `sed`/`node` the condition to `true`, run the gate test, copy back), so each guard landed with a test that fails without it.
+- The planning gate measured the candidate bounds against the local review log before asking (13 of 617 and 18 of 429 asks unrooted, all non-path tokens), and priced the rejected "leaf absent" bound by the writes it would admit (`mkdir -p ~/new`).
+
+#### What caused friction (agent side)
+
+- `premature-convergence` — the plan treated the bash projection's flagged path as the path bash reaches, and validated the bound only against organic data (what it admits), never against inputs it must refuse.
+  The projection is built to over-flag, which is safe for raising an ask; a fact that relieves an ask inherits every approximation as a bypass.
+  Impact: five FAIL rounds and one WARN, 6 `refactor:` fix commits and 6 `docs:` follow-ups amending ADR 0007 section 8, the configuration guide, the migration note, and the architecture entries; reviewer subagents started at 04:25, 08:16, 15:53, 16:19, 16:31, 17:16, and 17:46 UTC (subagent session file times).
+- `other` (scripted-edit trap) — `node -e` doc substitutions with `String.prototype.replace` duplicated whole files when the replacement string held `` $` `` (insert the text before the match); the agent caught it from a `HEAD=`/`now=` line-count check after the `rumdl fmt` hook failed the commit, reset, and switched to `split`/`join`.
+  Impact: one failed commit and one reset-and-redo of three doc files.
+- `other` (emission) — twice a section sign in an `Edit` arrived as a form feed plus `foo`, and twice a test name landed with a literal `\u2192`/`\u00a7` escape; the hooks and a grep caught all four.
+  Impact: four repair calls, no rework.
+- `instruction-violation` (self-identified) — the `/ship` final report said the roadmap phase status was unchecked instead of checking it; #882 was Phase 15's last open step, so the report should have flagged `/finish-phase`.
+  Impact: none beyond this retro, which surfaces it.
+
+#### What caused friction (user side)
+
+- The operator decided every FAIL round's fix (rounds 1 to 4), and the decisive one was strategic: replace the exclusions with a positive rule.
+  Had the planning gate asked which inputs the bound must refuse, that judgment would have come before the first review instead of after the third.
+
+### Diagnostic details
+
+- **Model-performance correlation** — planning and TDD ran on `anthropic/claude-opus-5-5`, the sync stage on `anthropic/claude-sonnet-5-5`; the `tidy-first-assessor` and all seven `pre-completion-reviewer` runs were on `anthropic/claude-sonnet-5-5` (read from each subagent transcript).
+  The sonnet reviewer found every bypass by running the real gate against adversarial inputs, so the cheaper model was adequate for adversarial review.
+- **Escalation-delay tracking** — no stretch exceeded five calls on one error; each FAIL went to the operator through `ask_user` within a few calls of the report.
+- **Feedback-loop gap analysis** — verification was incremental: the touched test file after every edit, the killing mutations per guard, and `pnpm run check`/`lint`/`test`/`fallow dead-code` before each review dispatch.
+  The measurement behind "8 of 430 recent asks carry the license" came from about ten disposable `test/spike-882.test.ts` harnesses written and deleted across planning and TDD, so it cannot be re-run from the repo.
+
+### Changes made
+
+1. `.pi/skills/package-pi-permission-system/SKILL.md`: an Implementation Priorities bullet saying that a fact relieving an ask is never read off the over-flagging bash projection, that it needs a positive condition the source proves, and that the plan lists the inputs the bound must refuse.
+2. `.pi/skills/edit-tool/SKILL.md`: a Scripted substitutions line requiring `split`/`join` over `String.prototype.replace` in a `node -e` substitution, because the replacement string interprets `$&`, `` $` ``, and `$'`.
+
 [#620]: https://github.com/gotgenes/pi-packages/issues/620
 [#684]: https://github.com/gotgenes/pi-packages/pull/684
 [#799]: https://github.com/gotgenes/pi-packages/issues/799

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, expectTypeOf, it } from "vitest";
+import type { z } from "zod";
 import type {
   DenyWithReason as SchemaDenyWithReason,
   FlatPermissionConfig as SchemaFlatPermissionConfig,
@@ -427,6 +428,139 @@ describe("commandEffectsSchema", () => {
       expect(commandEffectsSchema.safeParse(value).success).toBe(false);
     });
   });
+});
+
+describe("array size bounds", () => {
+  const CAP = 1000;
+
+  /**
+   * A failed union reports one top-level `invalid_union` whose arms carry the
+   * real issues, so a count of top-level issues cannot tell a pre-walk size
+   * rejection from a per-element one. Flatten to the leaves instead, rebasing
+   * each arm's union-relative path onto the union's own.
+   */
+  function leafIssues(
+    issues: readonly z.core.$ZodIssue[],
+    prefix: PropertyKey[] = [],
+  ): { code: string; path: PropertyKey[] }[] {
+    return issues.flatMap((issue) => {
+      const path = [...prefix, ...issue.path];
+      return issue.code === "invalid_union"
+        ? issue.errors.flatMap((arm) => leafIssues(arm, path))
+        : [{ code: issue.code, path }];
+    });
+  }
+
+  const repeat = <T>(n: number, fill: T): T[] =>
+    Array.from({ length: n }, () => fill);
+
+  interface BoundCase {
+    schema: z.ZodType;
+    build: (entries: string[]) => unknown;
+    validFill: string;
+    invalidFill: string;
+    path: (string | number)[];
+  }
+
+  const cases: [string, BoundCase][] = [
+    [
+      "piInfrastructureReadPaths",
+      {
+        schema: unifiedConfigSchema,
+        build: (entries) => ({ piInfrastructureReadPaths: entries }),
+        validFill: "/p",
+        invalidFill: "",
+        path: ["piInfrastructureReadPaths"],
+      },
+    ],
+    [
+      "authorizerChain",
+      {
+        schema: unifiedConfigSchema,
+        build: (entries) => ({ authorizerChain: entries }),
+        validFill: "x",
+        invalidFill: "",
+        path: ["authorizerChain"],
+      },
+    ],
+    [
+      "promptNotifications",
+      {
+        schema: unifiedConfigSchema,
+        build: (entries) => ({ promptNotifications: entries }),
+        validFill: "bell",
+        invalidFill: "beep",
+        path: ["promptNotifications"],
+      },
+    ],
+    [
+      "a commandEffects entry's effects",
+      {
+        schema: commandEffectsSchema,
+        build: (entries) => ({ t: { effects: entries } }),
+        validFill: "read",
+        invalidFill: "x",
+        path: ["t", "effects"],
+      },
+    ],
+    [
+      "a commandEffects entry's unlessOption",
+      {
+        schema: commandEffectsSchema,
+        build: (entries) => ({ t: { effects: "read", unlessOption: entries } }),
+        validFill: "--output",
+        invalidFill: "x",
+        path: ["t", "unlessOption"],
+      },
+    ],
+    [
+      "a subcommand's shorthand effects list",
+      {
+        schema: commandEffectsSchema,
+        build: (entries) => ({ t: { subcommands: { s: entries } } }),
+        validFill: "read",
+        invalidFill: "x",
+        path: ["t", "subcommands", "s"],
+      },
+    ],
+    [
+      "a subcommand entry's effects",
+      {
+        schema: commandEffectsSchema,
+        build: (entries) => ({
+          t: { subcommands: { s: { effects: entries } } },
+        }),
+        validFill: "read",
+        invalidFill: "x",
+        path: ["t", "subcommands", "s", "effects"],
+      },
+    ],
+  ];
+
+  describe.each(cases)(
+    "%s",
+    (_label, { schema, build, validFill, invalidFill, path }) => {
+      it(`accepts ${CAP} valid entries`, () => {
+        expect(schema.safeParse(build(repeat(CAP, validFill))).success).toBe(
+          true,
+        );
+      });
+
+      it(`rejects ${CAP + 1} invalid entries with one size issue and no element issue`, () => {
+        const result = schema.safeParse(build(repeat(CAP + 1, invalidFill)));
+        expect(result.success).toBe(false);
+        const leaves = leafIssues(result.error?.issues ?? []);
+        expect(
+          leaves
+            .filter((issue) => issue.code === "too_big")
+            .map((issue) => issue.path),
+        ).toEqual([path]);
+        expect(
+          leaves.filter((issue) => typeof issue.path.at(-1) === "number"),
+        ).toEqual([]);
+      });
+    },
+  );
 });
 
 describe("inferred types match the hand-written domain types", () => {

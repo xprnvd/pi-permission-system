@@ -123,6 +123,9 @@ This clamp is deny-preserving and, like `yoloMode`, applied at composition; when
 | `piInfrastructureReadPaths` | `[]`     | Extra directories to auto-allow for reads, bypassing the `external_directory` gate. Supports `~`/`$HOME`/`${HOME}` expansion and wildcard patterns (`*`, `?`).                                                                               |
 | `authorizerChain`           | `[]`     | Ordered names of registered live-authority chain links to consult before the terminal authorizer (see [Authorizer chain](#authorizer-chain--case-by-case-decision-links)).                                                                   |
 
+Every array field (`promptNotifications`, `piInfrastructureReadPaths`, `authorizerChain`, and a `commandEffects` entry's `effects` and `unlessOption` lists) accepts at most 1,000 entries.
+A longer list makes the file invalid, so it is rejected like any other invalid value (see [Merge Precedence](#merge-precedence) for how an invalid scope fails closed).
+
 Both logs write to `~/.pi/agent/extensions/pi-permission-system/logs/`.
 No debug output is printed to the terminal.
 
@@ -1144,6 +1147,8 @@ Each key is a command's **bare basename**, and each entry has up to three fields
 | `effects`      | `"read"`, `"write"`, or an array of them. `[]` says the command's arguments touch no file at all.                                                |
 | `unlessOption` | Options that withdraw the declaration when they appear anywhere in the command, so its paths consult both surfaces again.                        |
 | `subcommands`  | Entries for the word that follows, keyed by that exact word. A value is a nested entry or, as a shorthand, just its `effects` (`"log": "read"`). |
+
+The `effects` and `unlessOption` arrays each accept at most 1,000 entries; a longer list rejects the whole config file.
 
 The rules are fail-closed wherever a rule had to choose:
 
