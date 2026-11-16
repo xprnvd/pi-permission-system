@@ -1,14 +1,14 @@
 ---
 status: accepted
 date: 2026-08-22
-amended: 2026-09-15
+amended: 2026-11-16
 ---
 
 # 0013 — The permission policy model: capability as an axis
 
 ## Status
 
-Accepted, as amended 2026-09-15.
+Accepted, as amended through 2026-11-16 (the amendments below).
 
 This decision settles the shape of the deterministic policy model: whether access capability (reading versus writing a path) becomes first-class, how it is spelled in config, what composes with what, and where the enforcement boundary of this package lies.
 It composes with `docs/decisions/0009-bash-path-projection-completeness-contract.md`, whose layering asymmetry it preserves and whose per-command-table rejection it deliberately re-scopes (§7), and with `docs/decisions/0007-model-judge-authorizer-chain-adr.md`, to which it routes judgment the deterministic layer cannot supply and whose delegation exclusions it restates as surface families (§4) so they survive the new key names unamended.
@@ -254,6 +254,12 @@ For the same reason a declaration keyed by a wrapper itself (an indirection wrap
 
 **Provenance names the scope.**
 The blame source is `declared-global` or `declared-project`, the scope of the file whose entry won the shallow merge; a declaration's withdrawn claim is `retracted`, as a core guard's is.
+
+### Amendment, 2026-11-16 — the channel set is decided
+
+The handoffs to [#799] in this record (the status above, §7's agent-frontmatter channel, and §9) are answered by `docs/decisions/0016-policy-channels.md`.
+It adopts §9 verbatim as criterion K2, adding that a channel delivers its content per scope, and keeps agent frontmatter closed to `commandEffects` (its §10).
+Nothing in this record changes.
 
 ## Context
 

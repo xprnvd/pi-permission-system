@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [42.0.2](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v42.0.1...pi-permission-system-v42.0.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** a subagent's forwarded bash command is matched in its spellings on the parent ([a3c7d54](https://github.com/gotgenes/pi-packages/commit/a3c7d54181c2d34a6b2ba042acd07499c0bfb4e4)), closes [#1019](https://github.com/gotgenes/pi-packages/issues/1019)
+
+### Documentation
+
+* **pi-permission-system:** document that forwarded bash commands are matched in their spellings ([83c52e2](https://github.com/gotgenes/pi-packages/commit/83c52e2e8ec1d419501c1fbcc6a6241e3563668a)), closes [#1019](https://github.com/gotgenes/pi-packages/issues/1019)
+
+## [42.0.1](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v42.0.0...pi-permission-system-v42.0.1) (2026-11-16)
+
+
+### Documentation
+
+* **pi-permission-system:** add a package glossary ([cd313f5](https://github.com/gotgenes/pi-packages/commit/cd313f512aa465d1af00607b01ce7c915d88a81d)), closes [#799](https://github.com/gotgenes/pi-packages/issues/799)
+* **pi-permission-system:** record ADR 0016, the policy channels ([d655ddd](https://github.com/gotgenes/pi-packages/commit/d655ddd80b94018edbc71396776da1024c3535a5)), closes [#799](https://github.com/gotgenes/pi-packages/issues/799)
+* **pi-permission-system:** reconcile earlier records and the glossary with ADR 0016 ([3ce02e3](https://github.com/gotgenes/pi-packages/commit/3ce02e33e45a4724d39836704d3085913b4d35f7)), closes [#799](https://github.com/gotgenes/pi-packages/issues/799)
+* **pi-permission-system:** order and name the ADR 0016 amendment entries ([f637e59](https://github.com/gotgenes/pi-packages/commit/f637e599d4e8596bee65d163a555ed13424816de)), closes [#799](https://github.com/gotgenes/pi-packages/issues/799)
+
 ## [42.0.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v41.0.0...pi-permission-system-v42.0.0) (2026-10-28)
 
 
