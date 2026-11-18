@@ -3,6 +3,7 @@ import {
   buildDirectionalSessionLabels,
   buildForwardedScopeLabels,
   describeGrantTarget,
+  suggestBashChainSessionPatterns,
   suggestBashPattern,
   suggestMcpPattern,
   suggestPathSessionPattern,
@@ -59,6 +60,16 @@ describe("suggestBashPattern", () => {
     expect(suggestBashPattern("# Step 1\n# Step 2\ngit status --short")).toBe(
       "git status *",
     );
+  });
+
+  describe("cd", () => {
+    it("keeps the directory in the pattern instead of every cd", () => {
+      expect(suggestBashPattern("cd sub")).toBe("cd sub*");
+    });
+
+    it("keeps the exact command for a bare cd", () => {
+      expect(suggestBashPattern("cd")).toBe("cd");
+    });
   });
 
   it("returns empty for comment-only input", () => {
@@ -275,6 +286,34 @@ describe("suggestPathSessionPattern", () => {
   });
 });
 
+describe("suggestBashChainSessionPatterns", () => {
+  it("records one pattern per asking unit and names them all", () => {
+    expect(suggestBashChainSessionPatterns(["cd sub", "npm test"])).toEqual({
+      surface: "bash",
+      patterns: ["cd sub*", "npm test*"],
+      label: 'Yes, allow bash "cd sub*", "npm test*" for this session',
+    });
+  });
+
+  it("records a pattern two units share once, under the single-unit label", () => {
+    expect(suggestBashChainSessionPatterns(["echo a", "echo b"])).toEqual({
+      surface: "bash",
+      patterns: ["echo *"],
+      label: suggestSessionPattern("bash", "echo a").label,
+    });
+  });
+
+  it("drops a unit that suggests no pattern", () => {
+    expect(
+      suggestBashChainSessionPatterns(["# just a comment", "npm test"]),
+    ).toEqual({
+      surface: "bash",
+      patterns: ["npm test*"],
+      label: 'Yes, allow bash "npm test*" for this session',
+    });
+  });
+});
+
 describe("describeGrantTarget", () => {
   it("quotes the pattern when there is exactly one grant", () => {
     expect(
@@ -301,6 +340,15 @@ describe("describeGrantTarget", () => {
         { surface: "external_directory_read", pattern: "/outside/a/*" },
       ]),
     ).toBe('"/outside/a/*"');
+  });
+
+  it("lists every pattern of several bash grants rather than counting paths", () => {
+    expect(
+      describeGrantTarget([
+        { surface: "bash", pattern: "cd sub*" },
+        { surface: "bash", pattern: "npm test*" },
+      ]),
+    ).toBe('"cd sub*", "npm test*"');
   });
 
   it("names a directory approval by its contents glob", () => {
@@ -370,6 +418,17 @@ describe("buildForwardedScopeLabels", () => {
       ]).servingSessionLabel,
     ).toBe(
       "The whole session — allow external_directory 2 paths for parent and all subagents",
+    );
+  });
+
+  it("names every pattern of a bash chain's grants", () => {
+    expect(
+      buildForwardedScopeLabels("Explore", [
+        { surface: "bash", pattern: "cd sub*" },
+        { surface: "bash", pattern: "npm test*" },
+      ]).servingSessionLabel,
+    ).toBe(
+      'The whole session — allow bash "cd sub*", "npm test*" for parent and all subagents',
     );
   });
 

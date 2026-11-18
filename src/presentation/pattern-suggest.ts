@@ -114,16 +114,27 @@ export interface ForwardedScopeLabels {
 /**
  * What an approval's grants cover, as one phrase.
  *
- * A single target names its pattern; several name their count, because only
- * the external-directory gate aggregates an ask over many paths and there is
- * no pattern that describes them all. Targets, not grants: a directory's
- * two-grant approval and two paths sharing one glob each count once
- * ({@link grantTargets}). Requires at least one grant — an approval
- * with none is never offered as a session option.
+ * A single target names its pattern. Several paths name their count, because
+ * an external-directory ask can aggregate many and no pattern describes them
+ * all; targets, not grants, so a directory's two-grant approval and two paths
+ * sharing one glob each count once ({@link grantTargets}). Several grants off
+ * the path families (a bash chain's one pattern per asking unit) are listed,
+ * since each pattern is what the grant records. Requires at least one grant —
+ * an approval with none is never offered as a session option.
  */
 export function describeGrantTarget(grants: readonly ApprovalGrant[]): string {
+  if (!grants.every(isPathFamilyGrant)) {
+    return [...new Set(grants.map((grant) => grant.pattern))]
+      .map((pattern) => `"${pattern}"`)
+      .join(", ");
+  }
   const targets = grantTargets(grants);
   return targets.length === 1 ? `"${targets[0]}"` : `${targets.length} paths`;
+}
+
+/** Whether a grant names a `path` or `external_directory` family surface. */
+function isPathFamilyGrant(grant: ApprovalGrant): boolean {
+  return surfaceFamilyMembers(surfaceFamilyOf(grant.surface)) !== null;
 }
 
 /** The two session-option labels for an ask whose grants prove one direction. */
@@ -164,11 +175,7 @@ export function buildDirectionalSessionLabels(
 export function buildPathAccessSessionLabel(
   grants: readonly ApprovalGrant[],
 ): string | null {
-  const allPathFamily =
-    grants.length > 0 &&
-    grants.every(
-      (grant) => surfaceFamilyMembers(surfaceFamilyOf(grant.surface)) !== null,
-    );
+  const allPathFamily = grants.length > 0 && grants.every(isPathFamilyGrant);
   return allPathFamily
     ? `Yes, allow access to ${describeGrantTarget(grants)} for this session`
     : null;
@@ -275,8 +282,11 @@ export function suggestSessionPattern(
   return { surface, pattern, label: buildLabel(pattern, surface) };
 }
 
-/** The suggestion for a path surface: every pattern to record, one label. */
-export interface PathSessionSuggestion {
+/**
+ * A session suggestion that records several patterns under one label: a path
+ * surface's directory pair, or one pattern per asking unit of a bash chain.
+ */
+export interface SessionPatternsSuggestion {
   /** The permission surface this approval applies to. */
   surface: string;
   /** The wildcard patterns to store as session rules. */
@@ -297,7 +307,7 @@ export interface PathSessionSuggestion {
 export function suggestPathSessionPattern(
   surface: string,
   approvalPatterns: readonly string[],
-): PathSessionSuggestion {
+): SessionPatternsSuggestion {
   const targets = grantTargets(
     approvalPatterns.map((pattern) => ({ surface, pattern })),
   );
@@ -305,6 +315,34 @@ export function suggestPathSessionPattern(
     surface,
     patterns: approvalPatterns,
     label: buildLabel(targets.join('", "'), surface),
+  };
+}
+
+/**
+ * Build the suggestion for a bash chain whose units each still ask: one pattern
+ * per unit, so approving the chain for the session covers what the prompt named
+ * and nothing else.
+ *
+ * Patterns two units share are recorded once, before the label is built, so a
+ * chain whose units all suggest one pattern reads exactly as a single unit's
+ * option does. A unit that suggests nothing (a comment-only line) is dropped.
+ * Not routed through {@link grantTargets}, whose directory fold is path
+ * semantics.
+ */
+export function suggestBashChainSessionPatterns(
+  commands: readonly string[],
+): SessionPatternsSuggestion {
+  const patterns = [
+    ...new Set(
+      commands
+        .map((command) => suggestBashPattern(command))
+        .filter((pattern) => pattern !== ""),
+    ),
+  ];
+  return {
+    surface: "bash",
+    patterns,
+    label: buildLabel(patterns.join('", "'), "bash"),
   };
 }
 

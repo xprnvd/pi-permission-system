@@ -62,7 +62,7 @@ It is expanded at load time, separately for each [scope](#scope) and before scop
 
 ### Path
 
-The `path` family governs a file path wherever it is, matched against both its typed spelling and its symlink-resolved one.
+The `path` family governs a file path wherever it is, matched against both its typed spelling and its resolved one (symlinks followed and, on POSIX, the spelling the filesystem stores).
 Its idiomatic use is carving denials such as `~/.ssh/*`; granting access outside the working directory is the job of [external directory](#external-directory).
 
 ### External directory
@@ -167,6 +167,11 @@ Pi emits a `tool_call` event before the tool runs, where this package's [gates](
 One check a tool call must pass: it names a surface and a value, resolves them against the ruleset, and acts on the [action](#action).
 A tool call passes through a fixed sequence of six gates (skill read, path, external directory, bash external directory, bash path, tool), and the first block stops the call (an unconditionally denying gate is checked ahead of the rest); for a shell tool, the tool gate checks each command unit.
 A `/skill:` invocation typed by the user has its own input gate.
+
+### Asking unit
+
+A command unit of a bash chain whose own rule, or a floor, resolved `ask`.
+A chain's prompt names its first asking unit as the value and every other one beside it, its session option records one pattern per asking unit, and a forwarded ask carries them all so the serving node judges each.
 
 ### Access intent
 

@@ -124,7 +124,7 @@ interface PermissionsService {
 
 Returns `PermissionCheckResult` with fields `state`, `matchedPattern`, `source`, `origin`, etc.
 
-For a path-shaped surface (`path`, `external_directory`, or a path-bearing tool — `read`/`write`/`edit`/`grep`/`find`/`ls`), the supplied `value` is matched against both the path as given and its canonical (symlink-resolved) form, at parity with the gates — so a query for a symlinked path matches a rule on its real target.
+For a path-shaped surface (`path`, `external_directory`, or a path-bearing tool — `read`/`write`/`edit`/`grep`/`find`/`ls`), the supplied `value` is matched against both the path as given and its canonical (symlink-resolved and, on POSIX, on-disk-spelled) form, at parity with the gates — so a query for a symlinked path matches a rule on its real target.
 
 For the `bash` surface, a `value` containing a chained or nested command (joined by `&&`, `||`, `;`, `|`, `&`, or newlines, or nested in a command substitution/subshell) is decomposed into its command-pattern units and resolved most-restrictive (`deny` > `ask` > `allow`), at parity with the enforcement gate — so `cd /repo && npm install x` returns the decision of the `npm install x` unit, not the leading `cd`.
 A previously chained command that returned `allow` (riding an allowed leading command) may therefore now return `deny`/`ask`.
@@ -428,23 +428,26 @@ Forwarding is orthogonal to origin: a forwarded subagent prompt keeps its origin
 The facts every render of the ask shows, that no renderer's budget may elide.
 Nested rather than flattened so the event and the prompt payload share one shape: a fact added here reaches the bus without a second hand-maintained declaration.
 
-| Field             | Type                         | Description                                                                                                |
-| ----------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `requester`       | `PromptRequester`            | Who is asking, and whether the ask arrived from a subagent                                                 |
-| `surface`         | `string`                     | The **gate** surface the rule fired on — `"external_directory"`, `"path"`, `"bash"`, a tool name           |
-| `toolName`        | `string \| null`             | The gated tool name; `null` when the ask is not tool-shaped                                                |
-| `invokedToolName` | `string \| null`             | The invoked name when a shell alias re-exposes bash under another name                                     |
-| `value`           | `string`                     | The decision-relevant value: the command, path, MCP target, or skill name                                  |
-| `matchedPattern`  | `string \| null`             | The matched rule, including a sentinel such as `<indirection-bash-wrapper>`                                |
-| `matchedSpelling` | `string \| null`             | For bash, the spelling of the command the rule matched, when it did not match the command as typed         |
-| `commandContext`  | `BashCommandContext \| null` | Where the offending bash unit runs, when it came from a substitution or subshell                           |
-| `executedUnit`    | `string \| null`             | For bash, the unit that will actually run, including inside an unstrippable wrapper                        |
-| `decidingPath`    | `DecidingPath \| null`       | For a bash path-surface ask, the path that decided it and what established its direction; `null` otherwise |
+| Field              | Type                           | Description                                                                                                               |
+| ------------------ | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `requester`        | `PromptRequester`              | Who is asking, and whether the ask arrived from a subagent                                                                |
+| `surface`          | `string`                       | The **gate** surface the rule fired on — `"external_directory"`, `"path"`, `"bash"`, a tool name                          |
+| `toolName`         | `string \| null`               | The gated tool name; `null` when the ask is not tool-shaped                                                               |
+| `invokedToolName`  | `string \| null`               | The invoked name when a shell alias re-exposes bash under another name                                                    |
+| `value`            | `string`                       | The decision-relevant value: the command, path, MCP target, or skill name                                                 |
+| `matchedPattern`   | `string \| null`               | The matched rule, including a sentinel such as `<indirection-bash-wrapper>`                                               |
+| `matchedSpelling`  | `string \| null`               | For bash, the spelling of the command the rule matched, when it did not match the command as typed                        |
+| `commandContext`   | `BashCommandContext \| null`   | Where the offending bash unit runs, when it came from a substitution or subshell                                          |
+| `executedUnit`     | `string \| null`               | For bash, the unit that will actually run, including inside an unstrippable wrapper                                       |
+| `decidingPath`     | `DecidingPath \| null`         | For a bash path-surface ask, the path that decided it and what established its direction; `null` otherwise                |
+| `otherAskingUnits` | `readonly string[]` (optional) | For a bash chain, every other unit still asking, in chain order: the commands the answer and its session grant also cover |
 
 `PromptRequester` carries `agentName` (`string | null`), `forwarded` (`boolean`), and `sessionId` (`string | null`, the requesting session for a forwarded ask).
 
 `DecidingPath` carries `path` (`string`, as the prompt shows it), `effect` (`"read" | "write" | "unproven"`), and `effectSource` (`"syntax" | "core" | "declared-global" | "declared-project" | "retracted" | "unproven"`, what established the effect).
 A request written by a version that predates the field carries no `decidingPath`, so a reader of a forwarded request should treat its absence as `null`.
+
+`otherAskingUnits` is absent rather than empty when the value is the ask's only asking unit, which is every ask but a bash chain with several; read its absence as "no other unit".
 
 The top-level `surface` and `request.surface` are two different facts and both belong on the event.
 The top-level one is the **display** projection — the child's tool name, what a notification shows.
