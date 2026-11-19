@@ -86,7 +86,7 @@
     "@biomejs/biome": "^2.5.11",
     "@earendil-works/pi-coding-agent": "1.0.0",
     "@earendil-works/pi-tui": "1.0.0",
-    "@types/node": "^22.15.3",
+    "@types/node": "^26.6.5",
     "rollup": "^4.63.1",
     "rollup-plugin-dts": "^6.5.1",
     "rumdl": "0.2.24",
