@@ -4,7 +4,7 @@ import {
   isProxyMcpCheck,
 } from "#src/access-intent/tool-kind";
 import type { ToolPreviewFormatter } from "#src/tool-input/tool-preview-formatter";
-import type { PermissionCheckResult } from "#src/types";
+import type { AskingBashUnit, PermissionCheckResult } from "#src/types";
 import { getNonEmptyString, toRecord } from "#src/value-guards";
 import type { PromptEvidence, PromptPayload } from "./prompt-payload";
 import { localRequester } from "./prompt-payload";
@@ -58,6 +58,43 @@ export function buildToolAskPayload(facts: ToolAskFacts): PromptPayload {
 }
 
 /**
+ * The payload of a bash chain's ask narrowed to the units still asking, in
+ * chain order, after some were decided.
+ *
+ * When the value's unit is still the first one left, every fact about it
+ * stands and only the other units shrink. Otherwise the first unit left becomes
+ * the value with its own rule; the facts only the gate's winner carried (its
+ * spelling, wrapper, and context) are not known for it, so they read `null`.
+ * The evidence is kept whole: the full command is what will run.
+ */
+export function narrowBashAskPayload(
+  payload: PromptPayload,
+  remaining: readonly AskingBashUnit[],
+): PromptPayload {
+  const { otherAskingUnits: _previous, ...request } = payload.request;
+  const commands = remaining.map((unit) => unit.command);
+  const head = remaining.at(0);
+  if (head === undefined || head.command === request.value) {
+    return {
+      ...payload,
+      request: { ...request, ...otherAskingUnits(commands, request.value) },
+    };
+  }
+  return {
+    ...payload,
+    request: {
+      ...request,
+      value: head.command,
+      matchedPattern: head.matchedPattern ?? null,
+      matchedSpelling: null,
+      executedUnit: null,
+      commandContext: null,
+      ...otherAskingUnits(commands, head.command),
+    },
+  };
+}
+
+/**
  * The decision-relevant value: the offending command for bash, the qualified
  * target for MCP, the tool name otherwise.
  *
@@ -78,18 +115,30 @@ function askValue(
 /**
  * Every other unit of a bash chain the gate left asking, beside the one the
  * value names: the answer covers them all, so the ask has to name them all.
- *
- * Only the first unit matching the value is removed, so a repeated command
- * (`echo a; echo a`) is still listed once. Absent when the value is the only
- * asking unit.
  */
 function otherAskingUnitsFact(
   check: PermissionCheckResult,
   bash: boolean,
 ): { otherAskingUnits?: string[] } {
   if (!bash || check.askingUnits === undefined) return {};
-  const commands = check.askingUnits.map((unit) => unit.command);
-  const valueIndex = commands.indexOf(check.command ?? "");
+  return otherAskingUnits(
+    check.askingUnits.map((unit) => unit.command),
+    check.command ?? "",
+  );
+}
+
+/**
+ * The asking commands beside the one `value` names.
+ *
+ * Only the first command matching the value is removed, so a repeated command
+ * (`echo a; echo a`) is still listed once. Absent when the value is the only
+ * asking unit.
+ */
+function otherAskingUnits(
+  commands: readonly string[],
+  value: string,
+): { otherAskingUnits?: string[] } {
+  const valueIndex = commands.indexOf(value);
   const others = commands.filter((_command, index) => index !== valueIndex);
   return others.length === 0 ? {} : { otherAskingUnits: others };
 }

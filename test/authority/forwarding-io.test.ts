@@ -313,16 +313,17 @@ describe("readForwardedPermissionRequest — accessIntent field", () => {
       };
     }
 
-    it("round-trips every unit the child left asking, with each one's floor and spellings", () => {
+    it("round-trips every unit the child left asking, with each one's rule, floor, and spellings", () => {
       const accessIntent: ForwardedAccessIntent = {
         surface: "bash",
         matchValues: ["ls"],
         boundaryValue: null,
         askingUnits: [
-          { command: "ls" },
+          { command: "ls", matchedPattern: "*" },
           {
             command: "sudo ~/y",
             spellings: ["sudo /h/y"],
+            matchedPattern: "<indirection-bash-wrapper>",
             floor: "<indirection-bash-wrapper>",
           },
         ],
@@ -338,6 +339,10 @@ describe("readForwardedPermissionRequest — accessIntent field", () => {
       ["an empty list", []],
       ["a unit whose command is not a string", [{ command: 42 }]],
       ["a unit whose floor is not a string", [{ command: "ls", floor: 42 }]],
+      [
+        "a unit whose matched rule is not a string",
+        [{ command: "ls", matchedPattern: 42 }],
+      ],
       ["a unit that is not an object", [null]],
       [
         "a unit whose spellings are not an array",
@@ -821,6 +826,64 @@ describe("readForwardedPermissionResponse — sessionGrantWidth field", () => {
 
   it("leaves the width absent for an older responder", () => {
     expect(writeAndRead(baseResponse())?.sessionGrantWidth).toBeUndefined();
+  });
+});
+
+describe("readForwardedPermissionResponse — narrowedGrants field", () => {
+  let root: string;
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  function writeAndRead(raw: unknown) {
+    root = mkdtempSync(join(tmpdir(), "io-narrowed-grants-"));
+    const filePath = join(root, "res.json");
+    writeJsonFileAtomic(null, filePath, raw);
+    return readForwardedPermissionResponse(null, filePath);
+  }
+
+  function baseResponse() {
+    return {
+      approved: true,
+      state: "approved_for_session",
+      responderSessionId: "parent-session",
+      respondedAt: 1000,
+    };
+  }
+
+  it("round-trips the grants a narrowed answer covers", () => {
+    const narrowedGrants = [{ surface: "bash", pattern: "git commit *" }];
+    expect(
+      writeAndRead({ ...baseResponse(), narrowedGrants })?.narrowedGrants,
+    ).toStrictEqual(narrowedGrants);
+  });
+
+  it("round-trips an empty list, which grants nothing", () => {
+    expect(
+      writeAndRead({ ...baseResponse(), narrowedGrants: [] })?.narrowedGrants,
+    ).toStrictEqual([]);
+  });
+
+  it.each([
+    ["not an array", "git commit *"],
+    ["a grant that is not an object", [null]],
+    ["a grant with no surface", [{ pattern: "git commit *" }]],
+    [
+      "a grant whose pattern is not a string",
+      [{ surface: "bash", pattern: 1 }],
+    ],
+  ])("reads a malformed list (%s) as granting nothing", (_, narrowedGrants) => {
+    const parsed = writeAndRead({ ...baseResponse(), narrowedGrants });
+
+    // Dropping the list would fall back to the gate's own, wider suggestion,
+    // so a list that cannot be read grants nothing instead.
+    expect(parsed?.approved).toBe(true);
+    expect(parsed?.narrowedGrants).toStrictEqual([]);
+  });
+
+  it("leaves the field absent for a responder that narrowed nothing", () => {
+    expect(writeAndRead(baseResponse())).not.toHaveProperty("narrowedGrants");
   });
 });
 

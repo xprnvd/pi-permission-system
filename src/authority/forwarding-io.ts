@@ -74,6 +74,25 @@ function asApprovalGrant(value: unknown): ApprovalGrant | undefined {
 }
 
 /**
+ * Read a response's narrowed grants, granting nothing when they are malformed.
+ *
+ * Unlike every other tolerant field here, a dropped list is not the restrictive
+ * reading: absence means "the requester's own suggestion", which is the wider
+ * grant the narrowing removed. So a list that cannot be read is read as empty,
+ * and the decision still reaches the requester.
+ */
+function asNarrowedGrants(value: unknown): ApprovalGrant[] {
+  if (!Array.isArray(value)) return [];
+  const grants: ApprovalGrant[] = [];
+  for (const entry of value) {
+    const grant = asApprovalGrant(entry);
+    if (!grant) return [];
+    grants.push(grant);
+  }
+  return grants;
+}
+
+/**
  * Narrow an unknown value to a `ForwardedSessionApproval`, or `undefined`.
  *
  * Tolerant read: the child's session-approval suggestion is optional (absent
@@ -214,11 +233,14 @@ function isWellFormedAskingUnit(value: unknown): value is AskingBashUnit {
   const unit = value as {
     command?: unknown;
     spellings?: unknown;
+    matchedPattern?: unknown;
     floor?: unknown;
   };
   return (
     typeof unit.command === "string" &&
     (unit.spellings === undefined || isNonEmptyStringList(unit.spellings)) &&
+    (unit.matchedPattern === undefined ||
+      typeof unit.matchedPattern === "string") &&
     (unit.floor === undefined || typeof unit.floor === "string")
   );
 }
@@ -236,6 +258,9 @@ function copyAskingUnits(units: readonly AskingBashUnit[]): AskingBashUnit[] {
   return units.map((unit) => ({
     command: unit.command,
     ...(unit.spellings === undefined ? {} : { spellings: [...unit.spellings] }),
+    ...(unit.matchedPattern === undefined
+      ? {}
+      : { matchedPattern: unit.matchedPattern }),
     ...(unit.floor === undefined ? {} : { floor: unit.floor }),
   }));
 }
@@ -624,6 +649,9 @@ export function readForwardedPermissionResponse(
       sessionGrantWidth: isSessionGrantWidth(parsed.sessionGrantWidth)
         ? parsed.sessionGrantWidth
         : undefined,
+      ...(parsed.narrowedGrants === undefined
+        ? {}
+        : { narrowedGrants: asNarrowedGrants(parsed.narrowedGrants) }),
     };
   } catch (error) {
     logPermissionForwardingWarning(
