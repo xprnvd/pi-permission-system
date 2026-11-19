@@ -89,7 +89,7 @@
     "@types/node": "^22.15.3",
     "rollup": "^4.63.1",
     "rollup-plugin-dts": "^6.5.1",
-    "rumdl": "0.2.24",
+    "rumdl": "0.3.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
   },
